@@ -1,13 +1,20 @@
+import { ConfigService } from '@nestjs/config';
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { User, Bookmark, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthDto } from './dto/auth.dto';
 import * as argon from 'argon2';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime';
+import { JwtService } from '@nestjs/jwt';
+import { config } from 'process';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwt: JwtService,
+    private cofig: ConfigService,
+  ) {}
 
   async signin(dto: AuthDto) {
     // find the user by email
@@ -24,9 +31,9 @@ export class AuthService {
     // if password incorrect throw exception
     if (!pwMatches)
       throw new ForbiddenException({ messgae: 'password not matched' });
-    delete user.hash;
+
     // send back the user
-    return user;
+    return this.signToken(user.id, user.email);
   }
 
   async signup(dto: AuthDto) {
@@ -41,9 +48,8 @@ export class AuthService {
         },
         //select: { id: true, email: true, createdAt: true },
       });
-      delete user.hash;
       // return the generated User
-      return user;
+      return this.signToken(user.id, user.email);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) {
         // The .code property can be accessed in a type-safe manner
@@ -53,5 +59,19 @@ export class AuthService {
       }
       throw e;
     }
+  }
+
+  async signToken(userId: number, email: string): Promise<string> {
+    const payload = {
+      sub: userId,
+      email,
+    };
+
+    const secret = this.cofig.get('JWT_SECRET');
+
+    return this.jwt.signAsync(payload, {
+      expiresIn: '15m',
+      secret: secret,
+    });
   }
 }
