@@ -13,7 +13,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-    private cofig: ConfigService,
+    private config: ConfigService,
   ) {}
 
   async signin(dto: AuthDto) {
@@ -67,7 +67,7 @@ export class AuthService {
       email,
     };
 
-    const secret = this.cofig.get('JWT_SECRET');
+    const secret = this.config.get('JWT_SECRET');
 
     return this.jwt.signAsync(payload, {
       expiresIn: '15m',
